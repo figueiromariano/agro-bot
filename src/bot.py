@@ -7,12 +7,16 @@
 import sys
 import os
 import logging
+import socket
+import datetime
+import requests
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, DISPOSITIVOS
+from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, DISPOSITIVOS, FIREBASE_DATABASE_URL
+
 import firebase_client as fb
 
 logging.basicConfig(level=logging.WARNING)
@@ -21,8 +25,42 @@ logging.basicConfig(level=logging.WARNING)
 def teclado_principal():
     return ReplyKeyboardMarkup([
         ["🌡 Ultima lectura", "📊 Historial"],
-        ["📡 Estado del dispositivo", "ℹ Ayuda"]
+        ["📡 Estado del dispositivo", "🤖 Estado del bot"],
+        ["ℹ Ayuda"]
     ], resize_keyboard=True)
+
+# ─────────────────────────────────────────
+def publicar_estado_bot(corriendo):
+    try:
+        datos = {
+            "corriendo": corriendo,
+            "equipo": socket.gethostname(),
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        for clave, valor in datos.items():
+            url = f"{FIREBASE_DATABASE_URL}bots/agropanel_bot/{clave}.json"
+            requests.put(url, json=valor)
+    except:
+        pass
+
+# ─────────────────────────────────────────
+async def cmd_estado_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        url = f"{FIREBASE_DATABASE_URL}bots/agropanel_bot.json"
+        response = requests.get(url)
+        datos = response.json()
+        corriendo = datos.get("corriendo", False)
+        equipo    = datos.get("equipo", "-")
+        timestamp = datos.get("timestamp", "-")
+        msg = (
+            f"🤖 *Estado del bot*\n\n"
+            f"Estado: *{'Corriendo' if corriendo else 'Detenido'}*\n"
+            f"Equipo: `{equipo}`\n"
+            f"Desde: {timestamp}"
+        )
+    except:
+        msg = "No se pudo obtener el estado del bot."
+    await update.message.reply_text(msg, parse_mode="Markdown")
 
 # ─────────────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -96,6 +134,8 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await ultima_lectura(update, context)
     elif "Historial" in texto:
         await historial(update, context)
+    elif "Estado del bot" in texto:
+        await cmd_estado_bot(update, context)
     elif "Estado" in texto:
         await estado(update, context)
     elif "Ayuda" in texto:
@@ -108,11 +148,16 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ─────────────────────────────────────────
 def main():
+    publicar_estado_bot(True)
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("estado", cmd_estado_bot))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, manejar_mensaje))
     print("Bot iniciado. Ctrl+C para detener.")
-    app.run_polling()
+    try:
+        app.run_polling()
+    finally:
+        publicar_estado_bot(False)
 
 if __name__ == "__main__":
     main()
