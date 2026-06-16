@@ -41,10 +41,10 @@ def con_reintentos(func, *args, intentos=3, espera=5):
 # ─────────────────────────────────────────
 def teclado_principal():
     return ReplyKeyboardMarkup([
-        ["🌡 Ultima lectura", "📊 Historial"],
+        ["🌡 Ultima lectura", "🌡 Presion BMP180"],
+        ["📊 Historial", "📈 Resumen del dia"],
         ["📡 Estado del dispositivo", "🔧 Datos internos"],
-        ["📈 Resumen del dia", "🤖 Estado del bot"],
-        ["ℹ Ayuda"]
+        ["🤖 Estado del bot", "ℹ Ayuda"]
     ], resize_keyboard=True)
 
 # ─────────────────────────────────────────
@@ -141,6 +141,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/start - Iniciar el bot\n"
         "🌡 Ultima lectura - Temperatura y humedad actual\n"
         "📊 Historial - Ultimas 10 lecturas\n"
+        "🌡 Presion BMP180 - Presion, temperatura y altitud\n"
         "📡 Estado del dispositivo - IP, red, modo\n"
         "🔧 Datos internos - RAM, señal WiFi, temp chip\n"
         "📈 Resumen del dia - Max, min, promedio\n"
@@ -222,6 +223,21 @@ async def resumen_dia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 # ─────────────────────────────────────────
+async def lectura_bmp180(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    datos = fb.leer("/sensores/bmp180/ultima_lectura")
+    if not datos:
+        await update.message.reply_text("No hay datos del BMP180 disponibles.")
+        return
+    msg = (
+        f"🌡 *Sensor BMP180*\n\n"
+        f"Presion: *{datos.get('presion', '-')} hPa*\n"
+        f"Temperatura: *{datos.get('temperatura', '-')} °C*\n"
+        f"Altitud: *{datos.get('altitud', '-')} m*\n"
+        f"Ultima lectura: {datos.get('timestamp', '-')}"
+    )
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+# ─────────────────────────────────────────
 async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
     if "Ultima lectura" in texto:
@@ -232,6 +248,8 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await datos_internos(update, context)
     elif "Resumen del dia" in texto:
         await resumen_dia(update, context)
+    elif "Presion BMP180" in texto:
+        await lectura_bmp180(update, context)
     elif "Estado del bot" in texto:
         await cmd_estado_bot(update, context)
     elif "Estado" in texto:
