@@ -4,10 +4,22 @@
 # Instalacion de agro-bot
 # ─────────────────────────────────────────
 
-echo "Instalando dependencias de agro-bot..."
+set -e
+
+echo "=== Instalador agro-bot ==="
+echo ""
+
+# Dependencias base del sistema
+echo "[1/3] Instalando dependencias del sistema..."
+sudo apt update -q
+sudo apt install -y git python3 python3-pip curl nano
+
+# Dependencias Python
+echo "[2/3] Instalando dependencias Python..."
 pip3 install python-telegram-bot requests --break-system-packages
 
-echo "Instalando servicio del sistema..."
+# Servicio systemd
+echo "[3/3] Instalando servicio del sistema..."
 cat > /tmp/agro-bot.service << 'SERVICE'
 [Unit]
 Description=Agro Bot - Bot de Telegram para el proyecto Agro
@@ -31,16 +43,15 @@ sudo mv /tmp/agro-bot.service /etc/systemd/system/agro-bot.service
 sudo systemctl daemon-reload
 
 echo ""
-echo "Servicio instalado pero NO activado."
-echo "Para activarlo usar el panel o manualmente:"
-echo "  sudo systemctl enable agro-bot"
-echo "  sudo systemctl start agro-bot"
-echo ""
-echo "Configuracion:"
+echo "=== Configuracion pendiente ==="
 echo "  cp src/config.py.ejemplo src/config.py"
 echo "  nano src/config.py"
 echo ""
-echo "Uso directo:"
-echo "  python3 src/bot.py"
+echo "=== Servicio instalado pero NO activado ==="
+echo "  Para activar manualmente:"
+echo "  sudo systemctl enable agro-bot"
+echo "  sudo systemctl start agro-bot"
+echo ""
+echo "  Para activar desde el panel: usar opcion [A] en el dashboard"
 echo ""
 echo "Listo!"
